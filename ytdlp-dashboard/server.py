@@ -29,6 +29,22 @@ DOWNLOAD_DIR = HERE / "downloads"
 JOBS: dict[str, dict] = {}
 JOBS_LOCK = threading.Lock()
 CANCELLED: set[str] = set()
+SLOTS = threading.BoundedSemaphore(3)  # max simultaneous downloads (--concurrent)
+URL_RE = re.compile(r"(?:https?://|ytsearch\d*:)\S+", re.I)
+
+
+def parse_urls(text: str) -> list[str]:
+    """Extract unique URLs from free text / .txt / .csv, ignoring #-comment lines."""
+    seen, out = set(), []
+    for line in text.splitlines():
+        if line.lstrip().startswith("#"):
+            continue
+        for u in URL_RE.findall(line):
+            u = u.rstrip(",;)\"'>")
+            if u not in seen:
+                seen.add(u)
+                out.append(u)
+    return out
 
 
 class Cancelled(Exception):
@@ -191,7 +207,12 @@ def on_pp(job_id, d):
 
 
 def run_job(job_id, req):
+    SLOTS.acquire()  # jobs wait here as "queued" until a slot frees up
     try:
+        if job_id in CANCELLED:
+            raise Cancelled()
+        with JOBS_LOCK:
+            JOBS[job_id]["status"] = "downloading"
         with yt_dlp.YoutubeDL(build_opts(req, job_id)) as ydl:
             info = ydl.extract_info(req["url"], download=True)
             files = set()
@@ -214,6 +235,7 @@ def run_job(job_id, req):
             JOBS[job_id].update(status="error", error=msg, finished=time.time())
     finally:
         CANCELLED.discard(job_id)
+        SLOTS.release()
 
 
 def start_job(req):
@@ -313,9 +335,27 @@ class Handler(BaseHTTPRequestHandler):
                 return self._json({"error": "url required"}, 400)
             req["url"] = url
             return self._json({"id": start_job(req)})
+        if path == "/api/batch":
+            urls = parse_urls(req.get("text") or "")
+            if not urls:
+                return self._json({"error": "no URLs found"}, 400)
+            ids = [start_job({**req, "url": u}) for u in urls[:2000]]
+            return self._json({"ids": ids, "count": len(ids), "skipped": max(0, len(urls) - 2000)})
+        if path == "/api/jobs/cancel_all":
+            with JOBS_LOCK:
+                for k, j in JOBS.items():
+                    if j["status"] in ("queued", "downloading", "processing"):
+                        CANCELLED.add(k)
+                        if j["status"] == "queued":
+                            j["status"] = "cancelled"
+            return self._json({"ok": True})
         m = re.fullmatch(r"/api/jobs/(\w+)/cancel", path)
         if m:
             CANCELLED.add(m.group(1))
+            with JOBS_LOCK:
+                j = JOBS.get(m.group(1))
+                if j and j["status"] == "queued":
+                    j["status"] = "cancelled"
             return self._json({"ok": True})
         if path == "/api/jobs/clear":
             with JOBS_LOCK:
@@ -331,7 +371,10 @@ def main():
     ap.add_argument("--host", default="127.0.0.1")
     ap.add_argument("--port", type=int, default=8080)
     ap.add_argument("--dir", default=str(DOWNLOAD_DIR))
+    ap.add_argument("--concurrent", type=int, default=3, help="simultaneous downloads")
     a = ap.parse_args()
+    global SLOTS
+    SLOTS = threading.BoundedSemaphore(max(1, a.concurrent))
     DOWNLOAD_DIR = Path(a.dir).resolve()
     DOWNLOAD_DIR.mkdir(parents=True, exist_ok=True)
     print(f"yt-dlp {yt_dlp.version.__version__} | {len(catalog())} services | downloads -> {DOWNLOAD_DIR}")

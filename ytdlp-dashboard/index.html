@@ -80,6 +80,16 @@ a{color:var(--acc2)}
         <button class="btn fixed" id="go">Download</button>
       </div>
       <div class="match" id="match"></div>
+      <details id="batchbox" style="margin-top:10px">
+        <summary><b>Batch download</b> <span class="small">paste many links or upload a file</span></summary>
+        <textarea id="batch" rows="6" placeholder="One link per line. Lines starting with # are ignored. Any text works: URLs are picked out automatically." style="width:100%;margin-top:10px;padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--fg);font:13px/1.5 ui-monospace,Menlo,Consolas,monospace"></textarea>
+        <div class="row" style="margin-top:8px">
+          <label class="btn alt fixed" style="cursor:pointer;display:inline-block">Upload .txt / .csv<input type="file" id="bfile" accept=".txt,.csv,.list,.md,text/*" multiple hidden></label>
+          <span class="small" id="bcount" style="flex:1">0 links</span>
+          <button class="btn fixed" id="bgo" disabled>Download all</button>
+        </div>
+        <div class="small" style="margin-top:6px">Uses the quality, subtitle and login options above. Downloads run a few at a time; the rest wait in the queue.</div>
+      </details>
       <div class="row" style="margin-top:8px">
         <select id="mode">
           <option value="best">Best quality</option>
@@ -117,7 +127,7 @@ a{color:var(--acc2)}
 
   <section id="t-q" class="hide">
     <div class="card">
-      <div class="row" style="margin-bottom:6px"><b style="flex:1">Downloads</b><button class="btn alt fixed" id="clear">Clear finished</button></div>
+      <div class="row" style="margin-bottom:6px"><b style="flex:1">Downloads <span class="small" id="qsum"></span></b><button class="btn alt fixed" id="cancelall">Cancel all</button><button class="btn alt fixed" id="retry">Retry failed</button><button class="btn alt fixed" id="clear">Clear finished</button></div>
       <div id="jobs"><div class="small">Nothing yet.</div></div>
     </div>
   </section>
@@ -234,11 +244,35 @@ $('#go').onclick = () => start(opts());
 $('#url').onkeydown = e => { if (e.key === 'Enter') start(opts()); };
 $('#clear').onclick = async () => { await api('jobs/clear', {}); poll(); };
 
+
+// batch
+const URL_RE = /(?:https?:\/\/|ytsearch\d*:)\S+/gi;
+const countUrls = t => new Set(t.split('\n').filter(l => !l.trim().startsWith('#')).flatMap(l => (l.match(URL_RE) || []))).size;
+const updBatch = () => { const n = countUrls($('#batch').value); $('#bcount').textContent = n + (n === 1 ? ' link' : ' links'); $('#bgo').disabled = !n; };
+$('#batch').oninput = updBatch;
+$('#bfile').onchange = async e => {
+  for (const f of e.target.files) { const t = await f.text(); $('#batch').value += ($('#batch').value && !$('#batch').value.endsWith('\n') ? '\n' : '') + t; }
+  e.target.value = ''; updBatch();
+};
+$('#bgo').onclick = async () => {
+  $('#err').textContent = '';
+  const r = await api('batch', {...opts(), text: $('#batch').value});
+  if (r.error) { $('#err').textContent = r.error; return; }
+  $('#batch').value = ''; updBatch(); goTab('q'); poll();
+};
+$('#cancelall').onclick = () => api('jobs/cancel_all', {}).then(poll);
+$('#retry').onclick = async () => {
+  const failed = (await api('jobs')).filter(j => j.status === 'error' || j.status === 'cancelled').map(j => j.url);
+  if (failed.length) { await api('batch', {...opts(), text: failed.join('\n')}); await api('jobs/clear', {}); poll(); }
+};
+
 // job queue
 let seenDone = new Set();
 async function poll() {
   const jobs = await api('jobs');
   const active = jobs.filter(j => ['queued','downloading','processing'].includes(j.status)).length;
+  const cnt = st => jobs.filter(j => j.status === st).length;
+  $('#qsum').textContent = jobs.length ? `· ${cnt('done')} done · ${active} active · ${cnt('error')} failed` : '';
   $('#qn').textContent = active ? `(${active})` : '';
   jobs.filter(j => j.status === 'done').forEach(j => seenDone.add(j.id));
   const sd = $('#sd'); if (sd) sd.textContent = seenDone.size;

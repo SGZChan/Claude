@@ -3,6 +3,7 @@
 A local web dashboard for [yt-dlp](https://github.com/yt-dlp/yt-dlp) covering every service it supports.
 
 - **Download**: paste any URL, see which extractor matches, inspect formats, pick quality/audio-only/container, subtitles, thumbnails, playlists, cookies-from-browser, login and proxy.
+- **Batch**: paste many links or upload `.txt`/`.csv` files (URLs are picked out of any text, duplicates and `#` comments ignored). Downloads run 3 at a time (`--concurrent N`); the rest wait in the queue. Queue has Cancel all, Retry failed, Clear finished.
 - **Queue**: live progress, speed, ETA, cancel, and download links for finished files.
 - **Supported sites**: searchable, filterable (working/broken, login, search, 18+), A–Z browsing. The list is generated from yt-dlp's extractor registry, so it always matches the installed version.
 
