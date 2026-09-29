@@ -70,6 +70,7 @@ a{color:var(--acc2)}
   <span class="ver" id="ver"></span>
 </header>
 <main>
+  <div class="card hide" id="ffwarn" style="border-color:var(--warn)"><b>ffmpeg not found.</b> Downloads still work, but only in single-file formats (often 360p–720p) and audio is not converted to mp3. For best quality install ffmpeg (<code>winget install Gyan.FFmpeg</code>) and restart the server.</div>
   <div class="stats" id="stats"></div>
 
   <section id="t-dl">
@@ -169,6 +170,7 @@ async function loadSites() {
   SITES = await api('sites');
   const v = await api('version');
   $('#ver').textContent = 'yt-dlp ' + v.yt_dlp + ' · saving to ' + v.download_dir;
+  $('#ffwarn').classList.toggle('hide', v.ffmpeg);
   const ok = SITES.filter(s => s.working).length;
   $('#stats').innerHTML = [
     [SITES.length, 'services supported'], [SITES.reduce((a,s)=>a+s.count,0), 'extractors (site sections)'],

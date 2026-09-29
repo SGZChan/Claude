@@ -31,7 +31,18 @@ if errorlevel 1 (
   exit /b 1
 )
 
-where ffmpeg >nul 2>&1 || echo Note: ffmpeg not found. Merging HD video and audio extraction need it: winget install Gyan.FFmpeg
+where ffmpeg >nul 2>&1
+if errorlevel 1 (
+  echo ffmpeg not found. Installing it with winget ^(needed for HD video and mp3^)...
+  winget install -e --id Gyan.FFmpeg --accept-package-agreements --accept-source-agreements
+  if not errorlevel 1 (
+    echo.
+    echo ffmpeg installed. Close this window and run run.bat again so PATH refreshes.
+    pause
+    exit /b 0
+  )
+  echo Could not install ffmpeg automatically; continuing with limited formats.
+)
 
 start "" http://127.0.0.1:8080
 %PY% server.py

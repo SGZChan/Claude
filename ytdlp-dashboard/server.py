@@ -11,6 +11,7 @@ import json
 import mimetypes
 import os
 import re
+import shutil
 import threading
 import time
 import uuid
@@ -155,8 +156,14 @@ def build_opts(req: dict, job_id: str | None = None) -> dict:
         opts["writethumbnail"] = True
     mode = req.get("mode", "best")
     fmt = req.get("format_id")
+    ff = bool(shutil.which("ffmpeg"))
     if fmt:
-        opts["format"] = fmt
+        opts["format"] = fmt if ff else re.sub(r"\+.*", "", fmt)  # a "137+140" pick can't merge without ffmpeg
+    elif not ff and mode == "audio":
+        opts["format"] = "bestaudio/best"  # raw audio stream, no conversion
+    elif not ff:
+        h = int(mode[:-1]) if mode.endswith("p") and mode[:-1].isdigit() else 99999
+        opts["format"] = f"b[height<={h}]/b"  # pre-merged single file only
     elif mode == "audio":
         opts["format"] = "bestaudio/best"
         opts["postprocessors"] = [{
@@ -289,7 +296,8 @@ class Handler(BaseHTTPRequestHandler):
         elif path == "/api/jobs":
             self._json(public_jobs())
         elif path == "/api/version":
-            self._json({"yt_dlp": yt_dlp.version.__version__, "download_dir": str(DOWNLOAD_DIR)})
+            self._json({"yt_dlp": yt_dlp.version.__version__, "download_dir": str(DOWNLOAD_DIR),
+                        "ffmpeg": bool(shutil.which("ffmpeg"))})
         elif path.startswith("/files/"):
             self._serve_file(unquote(path[len("/files/"):]))
         else:
