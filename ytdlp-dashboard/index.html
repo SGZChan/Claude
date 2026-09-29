@@ -1,0 +1,261 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>yt-dlp Dashboard</title>
+<style>
+:root{--bg:#f6f7f9;--card:#fff;--fg:#1b1f24;--mut:#667085;--line:#e4e7ec;--acc:#e5322d;--acc2:#2563eb;--ok:#16a34a;--warn:#d97706;--bad:#dc2626}
+@media (prefers-color-scheme:dark){:root{--bg:#0e1116;--card:#171b22;--fg:#e8eaed;--mut:#8b93a1;--line:#262c36;--acc:#ff5a52;--acc2:#5b8def;--ok:#3ecf6e;--warn:#f0a13a;--bad:#f0625b}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.5 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+header{display:flex;align-items:center;gap:12px;padding:14px 20px;background:var(--card);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:5;flex-wrap:wrap}
+header h1{font-size:18px;margin:0}header h1 b{color:var(--acc)}
+.ver{color:var(--mut);font-size:13px;margin-left:auto}
+nav{display:flex;gap:4px}
+nav button{background:none;border:0;color:var(--mut);padding:8px 14px;border-radius:8px;font:inherit;cursor:pointer}
+nav button.on{background:var(--bg);color:var(--fg);font-weight:600}
+main{max-width:1100px;margin:0 auto;padding:20px 16px 60px}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:20px}
+.stat,.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 16px}
+.stat b{display:block;font-size:26px;font-variant-numeric:tabular-nums}
+.stat span{color:var(--mut);font-size:13px}
+.card{margin-bottom:16px}
+input[type=text],input[type=password],select{width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--fg);font:inherit}
+input:focus,select:focus{outline:2px solid var(--acc2);outline-offset:-1px}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.row>*{flex:1 1 160px}.row>.fixed{flex:0 0 auto}
+label.chk{display:flex;gap:6px;align-items:center;color:var(--mut);font-size:14px;flex:0 0 auto}
+button.btn{background:var(--acc);color:#fff;border:0;border-radius:8px;padding:10px 18px;font:inherit;font-weight:600;cursor:pointer}
+button.btn.alt{background:var(--bg);color:var(--fg);border:1px solid var(--line)}
+button.btn:disabled{opacity:.5;cursor:default}
+.match{margin:10px 0 0;color:var(--mut);font-size:14px;min-height:21px}
+.tag{display:inline-block;padding:1px 8px;border-radius:99px;font-size:12px;border:1px solid var(--line);color:var(--mut);margin:0 4px 4px 0}
+.tag.ok{color:var(--ok);border-color:var(--ok)}.tag.bad{color:var(--bad);border-color:var(--bad)}.tag.warn{color:var(--warn);border-color:var(--warn)}
+.info{display:flex;gap:14px;margin-top:14px}
+.info img{width:180px;height:101px;object-fit:cover;border-radius:8px;background:var(--line);flex:0 0 auto}
+.info h3{margin:0 0 4px;font-size:16px}
+.err{color:var(--bad);white-space:pre-wrap;font-size:14px;margin-top:10px}
+table{width:100%;border-collapse:collapse;font-size:13px;margin-top:10px}
+th,td{text-align:left;padding:5px 8px;border-bottom:1px solid var(--line);font-variant-numeric:tabular-nums}
+th{color:var(--mut);font-weight:500}
+tr.pick{cursor:pointer}tr.pick:hover td{background:var(--bg)}
+.job{padding:12px 0;border-bottom:1px solid var(--line)}
+.job:last-child{border:0}
+.job .t{font-weight:600;word-break:break-word}
+.bar{height:6px;background:var(--line);border-radius:9px;overflow:hidden;margin:8px 0 4px}
+.bar i{display:block;height:100%;background:var(--acc2);transition:width .3s}
+.job.done .bar i{background:var(--ok)}.job.error .bar i{background:var(--bad)}
+.small{font-size:13px;color:var(--mut)}
+.sites{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:10px}
+.site{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px 12px;cursor:default}
+.site b{word-break:break-word}
+.site .d{color:var(--mut);font-size:12px;margin:2px 0 6px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.alpha{display:flex;flex-wrap:wrap;gap:4px;margin:10px 0}
+.alpha button{background:var(--card);border:1px solid var(--line);color:var(--fg);border-radius:6px;padding:2px 8px;cursor:pointer;font:inherit;font-size:13px}
+.alpha button.on{background:var(--acc2);color:#fff;border-color:var(--acc2)}
+a{color:var(--acc2)}
+.hide{display:none}
+@media(max-width:560px){.info{flex-direction:column}.info img{width:100%;height:auto;aspect-ratio:16/9}}
+</style>
+</head>
+<body>
+<header>
+  <h1><b>yt-dlp</b> Dashboard</h1>
+  <nav id="nav">
+    <button data-t="dl" class="on">Download</button>
+    <button data-t="q">Queue <span id="qn"></span></button>
+    <button data-t="sites">Supported sites</button>
+  </nav>
+  <span class="ver" id="ver"></span>
+</header>
+<main>
+  <div class="stats" id="stats"></div>
+
+  <section id="t-dl">
+    <div class="card">
+      <div class="row">
+        <input type="text" id="url" placeholder="Paste any video / audio / playlist URL (or a search like ytsearch5:lofi)" autofocus>
+        <button class="btn fixed" id="probe">Inspect</button>
+        <button class="btn fixed" id="go">Download</button>
+      </div>
+      <div class="match" id="match"></div>
+      <div class="row" style="margin-top:8px">
+        <select id="mode">
+          <option value="best">Best quality</option>
+          <option value="2160p">Up to 4K</option><option value="1440p">Up to 1440p</option>
+          <option value="1080p">Up to 1080p</option><option value="720p">Up to 720p</option>
+          <option value="480p">Up to 480p</option><option value="360p">Up to 360p</option>
+          <option value="audio">Audio only</option>
+        </select>
+        <select id="afmt" title="Audio format (audio only)">
+          <option>mp3</option><option>m4a</option><option>opus</option><option>flac</option><option>wav</option><option>aac</option>
+        </select>
+        <select id="merge" title="Container">
+          <option value="">Container: auto</option><option>mp4</option><option>mkv</option><option>webm</option>
+        </select>
+      </div>
+      <div class="row" style="margin-top:10px">
+        <label class="chk"><input type="checkbox" id="playlist"> Whole playlist</label>
+        <label class="chk"><input type="checkbox" id="subs"> Subtitles</label>
+        <label class="chk"><input type="checkbox" id="thumb"> Thumbnail</label>
+        <span style="flex:1"></span>
+        <a href="#" id="advtoggle" class="small">Advanced ▾</a>
+      </div>
+      <div id="adv" class="hide">
+        <div class="row" style="margin-top:10px">
+          <select id="cookies"><option value="">Cookies: none</option><option>chrome</option><option>firefox</option><option>edge</option><option>safari</option><option>brave</option></select>
+          <input type="text" id="user" placeholder="Username (sites needing login)">
+          <input type="password" id="pass" placeholder="Password">
+          <input type="text" id="proxy" placeholder="Proxy (http://host:port)">
+        </div>
+      </div>
+      <div class="err" id="err"></div>
+      <div id="infobox"></div>
+    </div>
+  </section>
+
+  <section id="t-q" class="hide">
+    <div class="card">
+      <div class="row" style="margin-bottom:6px"><b style="flex:1">Downloads</b><button class="btn alt fixed" id="clear">Clear finished</button></div>
+      <div id="jobs"><div class="small">Nothing yet.</div></div>
+    </div>
+  </section>
+
+  <section id="t-sites" class="hide">
+    <div class="card">
+      <div class="row">
+        <input type="text" id="q" placeholder="Search services…">
+        <select id="filter" class="fixed" style="max-width:220px">
+          <option value="all">All</option><option value="working">Working</option><option value="broken">Currently broken</option>
+          <option value="login">Supports login</option><option value="search">Has search</option><option value="adult">Age-restricted</option>
+        </select>
+      </div>
+      <div class="alpha" id="alpha"></div>
+      <div class="small" id="scount"></div>
+    </div>
+    <div class="sites" id="sites"></div>
+  </section>
+</main>
+
+<script>
+const $ = s => document.querySelector(s);
+const api = (p, body) => fetch('/api/' + p, body ? {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)} : undefined).then(r => r.json());
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const fmtB = n => !n ? '' : n > 1e9 ? (n/1e9).toFixed(2)+' GB' : n > 1e6 ? (n/1e6).toFixed(1)+' MB' : (n/1e3).toFixed(0)+' KB';
+const fmtT = s => { if (!s) return ''; s = Math.round(s); const h = s/3600|0, m = (s%3600)/60|0, x = s%60; return (h ? h+':' : '') + String(m).padStart(h?2:1,'0') + ':' + String(x).padStart(2,'0'); };
+
+// tabs
+document.querySelectorAll('#nav button').forEach(b => b.onclick = () => {
+  document.querySelectorAll('#nav button').forEach(x => x.classList.toggle('on', x === b));
+  ['dl','q','sites'].forEach(t => $('#t-'+t).classList.toggle('hide', t !== b.dataset.t));
+});
+const goTab = t => document.querySelector(`#nav [data-t=${t}]`).click();
+$('#advtoggle').onclick = e => { e.preventDefault(); $('#adv').classList.toggle('hide'); };
+
+// sites
+let SITES = [], letter = '';
+async function loadSites() {
+  SITES = await api('sites');
+  const v = await api('version');
+  $('#ver').textContent = 'yt-dlp ' + v.yt_dlp + ' · saving to ' + v.download_dir;
+  const ok = SITES.filter(s => s.working).length;
+  $('#stats').innerHTML = [
+    [SITES.length, 'services supported'], [SITES.reduce((a,s)=>a+s.count,0), 'extractors (site sections)'],
+    [ok, 'working'], [SITES.length - ok, 'currently broken'],
+    [SITES.filter(s=>s.login).length, 'support login'], ['<span id="sd">0</span>', 'downloads this session']
+  ].map(([n,l]) => `<div class="stat"><b>${n}</b><span>${l}</span></div>`).join('');
+  const letters = ['#', ...'ABCDEFGHIJKLMNOPQRSTUVWXYZ'];
+  $('#alpha').innerHTML = `<button data-l="" class="on">All</button>` + letters.map(l => `<button data-l="${l}">${l}</button>`).join('');
+  $('#alpha').onclick = e => { if (e.target.dataset.l === undefined) return; letter = e.target.dataset.l;
+    document.querySelectorAll('#alpha button').forEach(b => b.classList.toggle('on', b === e.target)); renderSites(); };
+  renderSites();
+}
+function renderSites() {
+  const q = $('#q').value.toLowerCase(), f = $('#filter').value;
+  const list = SITES.filter(s => {
+    if (q && !(s.name + ' ' + s.description).toLowerCase().includes(q)) return false;
+    if (letter) { const c = s.name[0].toUpperCase(); if (letter === '#' ? /[A-Z]/.test(c) : c !== letter) return false; }
+    return f === 'all' || (f === 'working' && s.working) || (f === 'broken' && !s.working) ||
+      (f === 'login' && s.login) || (f === 'search' && s.search) || (f === 'adult' && s.age_limit >= 18);
+  });
+  $('#scount').textContent = `${list.length} of ${SITES.length} services`;
+  $('#sites').innerHTML = list.map(s => `<div class="site"><b>${esc(s.name)}</b>
+    <div class="d">${esc(s.description) || '&nbsp;'}</div>
+    ${s.working ? '<span class="tag ok">working</span>' : '<span class="tag bad">broken</span>'}
+    ${s.count > 1 ? `<span class="tag" title="${esc(s.types.join(', '))}">${s.count} types</span>` : ''}
+    ${s.login ? '<span class="tag">login</span>' : ''}${s.search ? '<span class="tag">search</span>' : ''}
+    ${s.age_limit >= 18 ? '<span class="tag warn">18+</span>' : ''}</div>`).join('');
+}
+$('#q').oninput = renderSites; $('#filter').onchange = renderSites;
+
+// URL match (debounced)
+let mt;
+$('#url').oninput = () => {
+  clearTimeout(mt); const u = $('#url').value.trim();
+  if (!u) { $('#match').textContent = ''; return; }
+  mt = setTimeout(async () => {
+    const r = await api('match', {url: u});
+    $('#match').innerHTML = r.matches.length ? 'Detected: ' + r.matches.map(m => `<span class="tag ok">${esc(m)}</span>`).join('')
+      : '<span class="tag warn">No dedicated extractor</span> yt-dlp will try the generic extractor.';
+  }, 300);
+};
+
+const opts = () => ({
+  url: $('#url').value.trim(), mode: $('#mode').value, audio_format: $('#afmt').value, merge: $('#merge').value,
+  playlist: $('#playlist').checked, subtitles: $('#subs').checked, thumbnail: $('#thumb').checked,
+  cookies_browser: $('#cookies').value, username: $('#user').value, password: $('#pass').value, proxy: $('#proxy').value.trim()
+});
+
+$('#probe').onclick = async () => {
+  const o = opts(); if (!o.url) return;
+  $('#err').textContent = ''; $('#infobox').innerHTML = '<div class="small" style="margin-top:12px">Fetching…</div>';
+  const r = await api('info', o);
+  if (r.error) { $('#infobox').innerHTML = ''; $('#err').textContent = r.error; return; }
+  const rows = r.formats.slice().reverse().map(f => `<tr class="pick" data-f="${esc(f.id)}">
+    <td>${esc(f.id)}</td><td>${esc(f.ext)}</td><td>${esc(f.res)}${f.fps ? ' @' + f.fps : ''}</td>
+    <td>${esc(f.vcodec === 'none' ? '' : f.vcodec)}</td><td>${esc(f.acodec === 'none' ? '' : f.acodec)}</td><td>${fmtB(f.size)}</td><td>${esc(f.note)}</td></tr>`).join('');
+  $('#infobox').innerHTML = `<div class="info">${r.thumbnail ? `<img src="${esc(r.thumbnail)}" referrerpolicy="no-referrer">` : ''}
+    <div><h3>${esc(r.title)}</h3><div class="small">${esc(r.uploader)} ${r.duration ? '· ' + fmtT(r.duration) : ''} · ${esc(r.extractor)}
+    ${r.is_playlist ? '· playlist' + (r.entry_count ? ` of ${r.entry_count}` : '') : ''}</div></div></div>
+    ${rows ? `<table><thead><tr><th>ID</th><th>Ext</th><th>Res</th><th>Video</th><th>Audio</th><th>Size</th><th>Note</th></tr></thead><tbody>${rows}</tbody></table>
+    <div class="small" style="margin-top:6px">Click a row to download that exact format.</div>` : ''}`;
+  document.querySelectorAll('tr.pick').forEach(tr => tr.onclick = () => start({...opts(), format_id: tr.dataset.f}));
+};
+
+async function start(o) {
+  if (!o.url) return;
+  $('#err').textContent = '';
+  const r = await api('download', o);
+  if (r.error) { $('#err').textContent = r.error; return; }
+  goTab('q'); poll();
+}
+$('#go').onclick = () => start(opts());
+$('#url').onkeydown = e => { if (e.key === 'Enter') start(opts()); };
+$('#clear').onclick = async () => { await api('jobs/clear', {}); poll(); };
+
+// job queue
+let seenDone = new Set();
+async function poll() {
+  const jobs = await api('jobs');
+  const active = jobs.filter(j => ['queued','downloading','processing'].includes(j.status)).length;
+  $('#qn').textContent = active ? `(${active})` : '';
+  jobs.filter(j => j.status === 'done').forEach(j => seenDone.add(j.id));
+  const sd = $('#sd'); if (sd) sd.textContent = seenDone.size;
+  $('#jobs').innerHTML = jobs.length ? jobs.map(j => `<div class="job ${j.status}">
+    <div class="t">${esc(j.title)}</div>
+    <div class="bar"><i style="width:${j.percent || 0}%"></i></div>
+    <div class="small">${esc(j.status)}${j.status === 'downloading' ? ` · ${j.percent}%${j.speed ? ' · ' + fmtB(j.speed) + '/s' : ''}${j.eta ? ' · ETA ' + fmtT(j.eta) : ''}` : ''}
+      ${j.extractor ? ' · ' + esc(j.extractor) : ''}
+      ${['queued','downloading','processing'].includes(j.status) ? ` · <a href="#" onclick="cancel('${j.id}');return false">cancel</a>` : ''}</div>
+    ${j.error ? `<div class="err">${esc(j.error)}</div>` : ''}
+    ${(j.files || []).map(f => `<div class="small">⬇ <a href="/files/${encodeURI(f)}">${esc(f.split('/').pop())}</a></div>`).join('')}
+  </div>`).join('') : '<div class="small">Nothing yet.</div>';
+}
+const cancel = id => api(`jobs/${id}/cancel`, {}).then(poll);
+setInterval(poll, 1000);
+
+loadSites(); poll();
+</script>
+</body>
+</html>
