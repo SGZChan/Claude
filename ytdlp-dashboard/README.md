@@ -8,6 +8,10 @@ A local web dashboard for [yt-dlp](https://github.com/yt-dlp/yt-dlp) covering ev
 
 ## Run
 
+**Windows:** double-click `run.bat`. It installs Python (via winget) if missing, installs yt-dlp, starts the server and opens the browser. If you saw "Python was not found; run without arguments to install from the Microsoft Store", that is Windows' placeholder shortcut, not a real Python; `run.bat` handles it.
+
+**Any OS:**
+
 ```bash
 pip install -U yt-dlp        # ffmpeg is needed for merging and audio extraction
 python3 server.py            # http://127.0.0.1:8080
