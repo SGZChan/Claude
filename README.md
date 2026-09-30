@@ -7,7 +7,10 @@ laya/        Python package (agent, tools, memory, learning, FastAPI) + tests
 dashboard/   React + TypeScript dashboard (Vite)
 ```
 
-## Quick start
+## Quick start (Windows)
+Double-click **`setup.bat`** (needs Python 3.10+ and Node 18+). It creates a venv, installs Laya, downloads the 0.5B model, builds the dashboard and starts everything. Use `setup.bat /nomodel` to skip the model, `/norun` to skip launching. Afterwards start with **`run.bat`**.
+
+## Quick start (manual)
 
 ```bash
 cd laya
