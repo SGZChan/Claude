@@ -10,11 +10,11 @@ export function Tools() {
       <p className="sub"><b>safe</b> runs freely · <b>confirm</b> asks you first · <b>blocked</b> is unavailable.</p>
       <div className="card">
         <table>
-          <thead><tr><th>Tool</th><th>Description</th><th>Calls</th><th>Errors</th><th>Permission</th></tr></thead>
+          <thead><tr><th>Tool</th><th>Feature</th><th>Description</th><th>Calls</th><th>Errors</th><th>Permission</th></tr></thead>
           <tbody>
             {tools?.map((t) => (
               <tr key={t.name}>
-                <td className="mono">{t.name}({Object.keys(t.params).join(", ")})</td><td>{t.description}</td><td>{t.calls}</td><td>{t.errors}</td>
+                <td className="mono">{t.name}({Object.keys(t.params).join(", ")})</td><td>{t.feature}{!t.available && <span className="badge" style={{ marginLeft: 6 }}>off</span>}</td><td>{t.description}</td><td>{t.calls}</td><td>{t.errors}</td>
                 <td><select value={t.tier} aria-label={`Permission for ${t.name}`} onChange={(e) => api.patch(`/api/tools/${t.name}`, { tier: e.target.value }).then(reload)}>
                   {["safe", "confirm", "blocked"].map((x) => <option key={x}>{x}</option>)}
                 </select></td>

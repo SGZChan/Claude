@@ -3,12 +3,13 @@ import { api } from "./api";
 import { useApi } from "./hooks";
 import Overview from "./pages/Overview";
 import Console from "./pages/Console";
+import Features from "./pages/Features";
 import { Runs, RunDetail } from "./pages/Runs";
 import { Skills, Memory, Learning } from "./pages/Knowledge";
 import { Tools, Schedules, System } from "./pages/Ops";
 
 const NAV: [string, string][] = [
-  ["", "Overview"], ["console", "Run console"], ["runs", "Runs"], ["skills", "Skills"], ["memory", "Memory"],
+  ["", "Overview"], ["features", "Features"], ["console", "Run console"], ["runs", "Runs"], ["skills", "Skills"], ["memory", "Memory"],
   ["learning", "Learning"], ["tools", "Tools"], ["schedules", "Schedules"], ["system", "System"],
 ];
 
@@ -20,7 +21,9 @@ const useHash = () => {
 
 export default function App() {
   const hash = useHash();
-  const [page, arg] = hash.split("/");
+  const [path, query = ""] = hash.split("?");
+  const [page, arg] = path.split("/");
+  const goal = new URLSearchParams(query).get("goal") ?? "";
   const [sys, reloadSys] = useApi("/api/system", 5000);
   const [theme, setTheme] = useState<string>(() => { try { return localStorage.getItem("laya-theme") || ""; } catch { return ""; } });
   useEffect(() => {
@@ -44,7 +47,8 @@ export default function App() {
       <main>
         {killed && <div className="card err" role="alert">⛔ Kill switch is ON — Laya will not run new goals.</div>}
         {page === "" && <Overview />}
-        {page === "console" && <Console killed={killed} />}
+        {page === "features" && <Features />}
+        {page === "console" && <Console key={goal} killed={killed} initialGoal={goal} />}
         {page === "runs" && (arg ? <RunDetail id={+arg} /> : <Runs />)}
         {page === "skills" && <Skills />}
         {page === "memory" && <Memory />}

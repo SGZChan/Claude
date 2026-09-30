@@ -71,3 +71,14 @@ a { color: var(--accent); } .side a { color: var(--text-2); }
 line.gridline { stroke: var(--grid); stroke-width: 1; }
 .axis { fill: var(--text-3); font-size: 11px; }
 .endlabel { fill: var(--text-2); font-size: 11px; }
+/* features */
+h2.cat { margin: 22px 0 10px; font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: var(--text-2); }
+.feat.off { opacity: .72; } .feat.on { border-color: color-mix(in srgb, var(--accent) 45%, var(--border)); }
+button.switch { width: 42px; height: 24px; border-radius: 99px; padding: 2px; flex: none; background: var(--surface-2); position: relative; }
+button.switch span { display: block; width: 18px; height: 18px; border-radius: 50%; background: var(--text-3); transition: transform .15s, background .15s; }
+button.switch.checked { background: var(--accent); border-color: var(--accent); } button.switch.checked span { transform: translateX(18px); background: #fff; }
+.chips { display: flex; flex-wrap: wrap; gap: 4px; margin: 6px 0; } .chip { background: var(--surface-2); border: 1px solid var(--border); border-radius: 6px; padding: 1px 6px; font-size: 11px; }
+.hint { font-size: 12px; color: var(--text-2); margin: 6px 0; } .risk-medium { color: var(--warn); } .risk-high { color: var(--bad); }
+button.link { background: none; border: 0; padding: 0; color: var(--accent); text-decoration: underline; }
+a.tryit, a.btnlink { display: inline-block; font-size: 12px; margin-top: 4px; } a.btnlink { padding: 5px 10px; border: 1px solid var(--border); border-radius: 8px; text-decoration: none; }
+.today ul { margin: 4px 0 12px; padding-left: 18px; }

@@ -10,7 +10,7 @@ from ..learning.reflect import reflect
 from ..learning.skills import SkillLibrary, render_args
 from ..llm.base import LLM
 from ..memory.store import Store
-from ..tools.registry import BLOCKED, CONFIRM, Registry, ToolError
+from ..tools.registry import CONFIRM, Registry, ToolError
 
 Emit = Callable[[dict[str, Any]], None]
 Approver = Callable[[str, dict[str, Any]], bool]
@@ -46,8 +46,12 @@ def parse_action(text: str) -> dict[str, Any] | None:
 
 
 class Agent:
-    def __init__(self, settings: Settings, store: Store, llm: LLM, registry: Registry, skills: SkillLibrary) -> None:
+    def __init__(self, settings: Settings, store: Store, llm: LLM, registry: Registry, skills: SkillLibrary, features=None) -> None:
         self.settings, self.store, self.llm, self.registry, self.skills = settings, store, llm, registry, skills
+        self.features = features
+
+    def feat(self, fid: str) -> bool:
+        return self.features.enabled(fid) if self.features else True
 
     # -- helpers ----------------------------------------------------------
     def killed(self) -> bool:
@@ -57,8 +61,8 @@ class Agent:
         tool = self.registry.get(name)
         if tool is None:
             return False, f"unknown tool '{name}'"
-        if tool.tier == BLOCKED:
-            return False, f"tool '{name}' is blocked"
+        if reason := self.registry.why_unavailable(tool):
+            return False, reason
         if tool.tier == CONFIRM:
             emit({"type": "approval_request", "tool": name, "args": args})
             if approver is None or not approver(name, args):
@@ -73,11 +77,11 @@ class Agent:
             return False, str(e)
 
     def _prompt(self, goal: str, steps: list[dict[str, Any]]) -> str:
-        mem = self.store.search_facts(goal, k=3, kinds=("lesson", "correction", "note"))
+        mem = self.store.search_facts(goal, k=3, kinds=("lesson", "correction", "note")) if self.feat("memory_recall") else []
         memory = ("LESSONS:\n" + "\n".join(f"- {m['text']}" for m in mem) + "\n") if mem else ""
         hist = "".join(
             f"STEP {i}: {s['tool']}({json.dumps(s['args'])})\n-> {s['result']}\n" for i, s in enumerate(steps, 1))
-        return PROMPT.format(tools=self.registry.prompt_block(), memory=memory, goal=goal, history=hist)
+        return PROMPT.format(tools=self.registry.prompt_block(goal), memory=memory, goal=goal, history=hist)
 
     # -- main entry -------------------------------------------------------
     def run(self, goal: str, *, run_id: int | None = None, emit: Emit | None = None, approver: Approver | None = None,
@@ -100,7 +104,7 @@ class Agent:
         if self.killed():
             status, via, error = "blocked", "none", "kill switch is on"
         else:
-            fast = self._try_skill(goal, _emit, approver)
+            fast = self._try_skill(goal, _emit, approver) if self.feat("system_one") else None
             if fast:
                 steps, answer, skill_id = fast["steps"], fast["answer"], fast["skill_id"]
                 status, via = ("ok", "skill") if fast["ok"] else ("failed", "agent")
@@ -182,9 +186,9 @@ class Agent:
     def _learn(self, goal: str, steps: list[dict[str, Any]], ok: bool, via: str) -> None:
         if via != "agent":
             return
-        if ok:
+        if ok and self.feat("system_one"):
             promoted = self.skills.record_success(goal, steps)
             if promoted:
                 self.store.add_fact("lesson", f"Learned skill '{promoted['name']}'", score=1.0)
-        if steps or not ok:
+        if (steps or not ok) and self.feat("reflection"):
             reflect(self.llm, self.store, goal, steps, ok)

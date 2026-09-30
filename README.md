@@ -33,7 +33,10 @@ Without the model file Laya falls back to a deterministic mock so everything (te
 cd dashboard && npm install && npm run build   # then: cd ../laya && laya serve  -> http://127.0.0.1:8000
 # or, for development: `laya serve` (port 8000) + `npm run dev` in dashboard/
 ```
-Pages: Overview (KPIs, learning curve), Run console (live steps, approvals, stop), Runs, Skills, Memory, Learning, Tools & permissions, Schedules, System (+ kill switch).
+Pages: Overview (KPIs, Today panel, learning curve), Features, Run console (live steps, approvals, stop), Runs, Skills, Memory, Learning, Tools & permissions, Schedules, System (+ kill switch).
+
+## Features you can switch on and off
+The dashboard's **Features** page lets you pick what Laya can do (25 features: assistant, files & knowledge base, data wrangling, web digest, developer helper, message triage, utilities, plugins, learning toggles, background jobs) or apply a preset. See [docs/FEATURES.md](docs/FEATURES.md) for the full list and a roadmap of more ideas.
 
 ## How it learns (no weight updates)
 1. Every run is stored; a one-line **reflection** lesson is added to vector memory and retrieved into later prompts.

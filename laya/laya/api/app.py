@@ -1,18 +1,23 @@
 from __future__ import annotations
 
 import asyncio
+import io
 import json
-import threading
+import tempfile
 import time
+import zipfile
 from pathlib import Path
 from typing import Any
 
 from fastapi import FastAPI, HTTPException
-from fastapi.responses import FileResponse, PlainTextResponse, StreamingResponse
+from fastapi.responses import FileResponse, PlainTextResponse, Response, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from ..core import Laya
+from ..features import CATALOG, PRESETS, FeatureError
+from ..scheduler import Scheduler
+from ..tools.assistant import brief_text, fmt_ts
 from ..learning.curriculum import practice
 from ..learning.export import export_jsonl
 from ..learning.feedback import apply_feedback
@@ -146,7 +151,7 @@ def create_app(laya: Laya | None = None, run_scheduler: bool = False) -> FastAPI
     @app.get("/api/memory")
     def memory(q: str = "", kind: str = ""):
         if q:
-            return store.search_facts(q, k=25, kinds=(kind,) if kind else None, min_sim=0.05)
+            return store.search_facts(q, k=25, kinds=(kind,) if kind else None, min_sim=0.07)
         return store.list_facts(kind or None)
 
     @app.post("/api/memory", status_code=201)
@@ -222,16 +227,74 @@ def create_app(laya: Laya | None = None, run_scheduler: bool = False) -> FastAPI
                 laya.runner.stop(rid)
         return {"killed": body.on}
 
+    # -- features ---------------------------------------------------------
+    @app.get("/api/features")
+    def features():
+        cats = list(dict.fromkeys(f.category for f in CATALOG))
+        return {"features": laya.features.list(), "categories": cats,
+                "presets": [{"id": k, "label": v["label"], "description": v["description"], "count": len(v["features"])} for k, v in PRESETS.items()]}
+
+    @app.patch("/api/features/{fid}")
+    def set_feature(fid: str, body: EnabledIn):
+        try:
+            return laya.features.set_enabled(fid, body.enabled)
+        except FeatureError as e:
+            raise HTTPException(404, str(e))
+
+    @app.post("/api/features/preset/{name}")
+    def preset(name: str):
+        try:
+            return {"enabled": laya.features.apply_preset(name)}
+        except FeatureError as e:
+            raise HTTPException(404, str(e))
+
+    @app.post("/api/features/{fid}/run")
+    def run_job(fid: str):
+        msg = laya.features.run_job(fid, force=True)
+        if msg is None:
+            raise HTTPException(409, "feature has no job, or is turned off")
+        return {"message": msg}
+
+    @app.get("/api/plugins")
+    def plugins():
+        return {"enabled": laya.features.enabled("plugins"), "dir": str((laya.settings.data_dir / "plugins").resolve()), "plugins": laya.features.plugins()}
+
+    @app.get("/api/backup.zip")
+    def backup():
+        if not laya.features.enabled("backup"):
+            raise HTTPException(403, "backup feature is off")
+        buf = io.BytesIO()
+        with tempfile.TemporaryDirectory() as td, zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
+            import sqlite3
+            dst = sqlite3.connect(f"{td}/laya.db")
+            with store._lock:
+                store.db.backup(dst)
+            dst.close()
+            z.write(f"{td}/laya.db", "laya.db")
+            for f in laya.settings.workspace.rglob("*"):
+                if f.is_file():
+                    z.write(f, f"workspace/{f.relative_to(laya.settings.workspace).as_posix()}")
+        return Response(buf.getvalue(), media_type="application/zip", headers={"Content-Disposition": f"attachment; filename=laya-backup-{time.strftime('%Y%m%d-%H%M')}.zip"})
+
+    @app.get("/api/assistant/today")
+    def today():
+        f = laya.features
+        return {
+            "brief": brief_text(store) if f.enabled("daily_brief") else None,
+            "todos": store.q("SELECT id,text,due FROM todos WHERE done=0 ORDER BY id LIMIT 20") if f.enabled("todos") else None,
+            "reminders": [{**r, "when": fmt_ts(r["due"])} for r in store.q("SELECT id,text,due FROM reminders WHERE fired=0 ORDER BY due LIMIT 20")] if f.enabled("reminders") else None,
+            "alerts": store.q("SELECT id,text FROM facts WHERE kind='reminder' ORDER BY id DESC LIMIT 5") if f.enabled("reminders") else None,
+        }
+
+    @app.post("/api/todos/{tid}/done")
+    def todo_done(tid: int):
+        store.x("UPDATE todos SET done=1 WHERE id=?", (tid,))
+        return {"ok": True}
+
     # -- scheduler thread -------------------------------------------------
+    app.state.scheduler = Scheduler(laya)
     if run_scheduler:
-        def tick():
-            while True:
-                time.sleep(15)
-                for s in store.q("SELECT * FROM schedules WHERE enabled=1"):
-                    if time.time() - (s["last_run"] or 0) >= s["interval_s"] and store.get_kv("killed") != "1":
-                        store.x("UPDATE schedules SET last_run=? WHERE id=?", (time.time(), s["id"]))
-                        laya.runner.start(s["goal"], source="schedule")
-        threading.Thread(target=tick, daemon=True, name="laya-scheduler").start()
+        app.state.scheduler.start()
 
     # -- dashboard --------------------------------------------------------
     if DIST.exists():

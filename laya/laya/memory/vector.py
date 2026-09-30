@@ -5,17 +5,20 @@ import re
 
 import numpy as np
 
-DIM = 256
+DIM = 1024
 _WORD = re.compile(r"[a-z0-9]+")
 
 
 def embed(text: str) -> np.ndarray:
     words = _WORD.findall(text.lower())
-    feats = words + [f"{a}_{b}" for a, b in zip(words, words[1:])]
+    feats = [(w, 1.0) for w in words] + [(f"{a}_{b}", 1.0) for a, b in zip(words, words[1:])]
+    # character trigrams give cheap fuzzy matching (private ~ privacy, invoice ~ invoices)
+    feats += [(f"#{w[i:i + 3]}", 0.35) for w in words if len(w) >= 4 for i in range(len(w) - 2)]
+    feats += [(f"~{w[:5]}", 0.7) for w in words if len(w) >= 6]  # crude stem: privacy ~ private
     v = np.zeros(DIM, dtype=np.float32)
-    for f in feats:
+    for f, wt in feats:
         h = hash_str(f)
-        v[h % DIM] += 1.0 if (h >> 20) & 1 else -1.0
+        v[h % DIM] += wt if (h >> 20) & 1 else -wt
     n = np.linalg.norm(v)
     return v / n if n else v
 

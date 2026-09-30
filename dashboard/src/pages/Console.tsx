@@ -2,8 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import { api, LayaEvent, streamRun } from "../api";
 import { Timeline } from "./Runs";
 
-export default function Console({ killed }: { killed: boolean }) {
-  const [goal, setGoal] = useState("");
+export default function Console({ killed, initialGoal = "" }: { killed: boolean; initialGoal?: string }) {
+  const [goal, setGoal] = useState(initialGoal);
   const [rid, setRid] = useState<number | null>(null);
   const [events, setEvents] = useState<LayaEvent[]>([]);
   const [busy, setBusy] = useState(false);
