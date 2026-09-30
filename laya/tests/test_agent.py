@@ -66,3 +66,10 @@ def test_workspace_sandbox(laya):
 def test_final_after_failed_tool_is_not_success(laya):
     r = laya.agent.run("What is 1/0?")
     assert r["status"] == "failed" and "division by zero" in r["error"]
+
+
+def test_shape_handles_negative_numbers_and_subtraction():
+    assert shape_and_slots("Convert -4 c to f") == ("convert <n> c to f", ["-4"])
+    assert shape_and_slots("What is 5-3?") == ("what is <n>-<n>", ["5", "3"])
+    assert shape_and_slots("What is 2*-3?") == ("what is <n>*<n>", ["2", "-3"])
+    assert shape_and_slots("What is 10 - 3?") == ("what is <n> - <n>", ["10", "3"])

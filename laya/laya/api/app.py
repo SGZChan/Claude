@@ -17,6 +17,7 @@ from pydantic import BaseModel, Field
 from ..core import Laya
 from ..features import CATALOG, PRESETS, FeatureError
 from ..scheduler import Scheduler
+from . import practice_routes
 from ..tools.assistant import brief_text, fmt_ts
 from ..learning.curriculum import practice
 from ..learning.export import export_jsonl
@@ -226,6 +227,8 @@ def create_app(laya: Laya | None = None, run_scheduler: bool = False) -> FastAPI
             for rid in list(laya.runner.handles):
                 laya.runner.stop(rid)
         return {"killed": body.on}
+
+    practice_routes.register(app, laya)
 
     # -- features ---------------------------------------------------------
     @app.get("/api/features")

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { api, ago, pct } from "../api";
 import { useApi } from "../hooks";
+import PracticeTasks from "./Practice";
 
 export function Skills() {
   const [skills, reload] = useApi<any[]>("/api/skills", 4000);
@@ -88,11 +89,13 @@ export function Learning() {
       <div className="grid g2">
         <div className="card">
           <h2>Self-practice</h2>
-          <p className="muted">Runs verifiable arithmetic tasks so patterns reach the promotion threshold ({d.promote_after} successes).</p>
+          <p className="muted">Runs built-in arithmetic plus your own practice tasks (below) so patterns reach the promotion threshold ({d.promote_after} successes).</p>
           <button className="primary" disabled={busy} onClick={() => { setBusy(true); api.post("/api/learning/practice", { n: 9 }).then(reload).finally(() => setBusy(false)); }}>
             {busy ? "Practising…" : "Practise 9 tasks"}
           </button>
           {lp && <p>Last session: {lp.passed}/{lp.tasks} correct · {lp.via_skill} via skills · {lp.new_skills} new skills</p>}
+          {lp?.by_task && Object.entries(lp.by_task).map(([n, s]: [string, any]) => <div key={n} className="muted" style={{ fontSize: 12 }}>{n}: {s.passed}/{s.runs}</div>)}
+          {lp?.failures?.length > 0 && <details className="tableview"><summary>{lp.failures.length} miss(es)</summary>{lp.failures.map((f: any, i: number) => <div key={i} className="mono">{f.detail}</div>)}</details>}
           <p><a href="/api/learning/export.jsonl">Download training data (JSONL)</a></p>
         </div>
         <div className="card">
@@ -103,6 +106,7 @@ export function Learning() {
           ))}
         </div>
       </div>
+      <PracticeTasks />
       <div className="card">
         <h2>Recent lessons &amp; corrections</h2>
         {![...d.lessons, ...d.corrections].length && <div className="empty">None yet.</div>}

@@ -82,3 +82,7 @@ button.switch.checked { background: var(--accent); border-color: var(--accent); 
 button.link { background: none; border: 0; padding: 0; color: var(--accent); text-decoration: underline; }
 a.tryit, a.btnlink { display: inline-block; font-size: 12px; margin-top: 4px; } a.btnlink { padding: 5px 10px; border: 1px solid var(--border); border-radius: 8px; text-decoration: none; }
 .today ul { margin: 4px 0 12px; padding-left: 18px; }
+/* practice tasks */
+.taskform label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--text-2); margin-bottom: 10px; }
+.taskform input, .taskform select, .taskform textarea { font-size: 14px; color: var(--text); }
+.taskform code, .hint code { background: var(--surface-2); padding: 0 4px; border-radius: 4px; font-size: 11px; }

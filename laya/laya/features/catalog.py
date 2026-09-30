@@ -50,6 +50,7 @@ CATALOG: list[Feature] = [
     Feature("system_one", "System One skills", "Fast path: run learned skills with no model call. Off = always reason with the model.", "Learning", kind="behaviour"),
     Feature("reflection", "Reflection", "After each run Laya writes a one-line lesson and stores it.", "Learning", kind="behaviour"),
     Feature("memory_recall", "Memory recall", "Feed relevant lessons, corrections and notes into the model's prompt.", "Learning", kind="behaviour"),
+    Feature("custom_practice", "Custom practice tasks", "Add your own practice tasks (goal template + random parameters + how to check the answer). Self-practice and 'Practise' mix them in. Practice runs use real tools, so avoid side effects you don't want.", "Learning", kind="behaviour"),
     Feature("self_practice", "Self-practice", "Background job: practise verifiable tasks every 30 minutes so skills get learned while idle.", "Learning", default=False, job="self_practice", interval=1800, kind="job"),
     # ---- Automation & platform
     Feature("scheduler", "Scheduler", "Run recurring goals on a timer (Schedules page).", "Automation", kind="job"),
@@ -60,13 +61,13 @@ BY_ID = {f.id: f for f in CATALOG}
 
 PRESETS: dict[str, dict] = {
     "minimal": {"label": "Minimal", "description": "Notes, calculator and learning only.",
-                "features": ["notes", "calculator", "system_one", "memory_recall", "reflection"]},
+                "features": ["notes", "calculator", "system_one", "memory_recall", "reflection", "custom_practice"]},
     "assistant": {"label": "Personal assistant", "description": "Tasks, reminders, journal, briefs, triage.",
-                  "features": ["notes", "todos", "reminders", "daily_brief", "auto_brief", "journal", "calendar", "text_triage", "utilities", "calculator", "scheduler", "backup", "system_one", "memory_recall", "reflection"]},
+                  "features": ["notes", "todos", "reminders", "daily_brief", "auto_brief", "journal", "calendar", "text_triage", "utilities", "calculator", "scheduler", "backup", "system_one", "memory_recall", "reflection", "custom_practice"]},
     "developer": {"label": "Developer", "description": "Code search, git, tests, data and docs.",
-                  "features": ["notes", "file_helper", "knowledge_base", "watch_folder", "dev_helper", "code_sandbox", "data_wrangling", "calculator", "utilities", "scheduler", "backup", "system_one", "memory_recall", "reflection"]},
+                  "features": ["notes", "file_helper", "knowledge_base", "watch_folder", "dev_helper", "code_sandbox", "data_wrangling", "calculator", "utilities", "scheduler", "backup", "system_one", "memory_recall", "reflection", "custom_practice"]},
     "researcher": {"label": "Researcher", "description": "Documents, web digests, data and a journal.",
-                   "features": ["notes", "journal", "file_helper", "knowledge_base", "web_digest", "data_wrangling", "calculator", "utilities", "backup", "system_one", "memory_recall", "reflection"]},
+                   "features": ["notes", "journal", "file_helper", "knowledge_base", "web_digest", "data_wrangling", "calculator", "utilities", "backup", "system_one", "memory_recall", "reflection", "custom_practice"]},
     "private": {"label": "Private / offline", "description": "Everything that works without a network; offline mode on.",
                 "features": [f.id for f in CATALOG if f.id not in ("web_digest", "plugins", "code_sandbox")] + ["offline_mode"]},
     "everything": {"label": "Everything", "description": "Turn on every feature.", "features": [f.id for f in CATALOG]},

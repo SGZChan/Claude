@@ -14,7 +14,8 @@ from typing import Any
 
 from ..memory.store import Store
 
-TOKEN = re.compile(r"\"[^\"]*\"|'[^']*'|\d+(?:\.\d+)?")
+# numbers may be negative ("-4") unless the minus is a subtraction sign ("5-3")
+TOKEN = re.compile(r"\"[^\"]*\"|'[^']*'|(?<![\w.)])-?\d+(?:\.\d+)?")
 PLACEHOLDER = re.compile(r"⟦([sr])(\d+)⟧")
 
 

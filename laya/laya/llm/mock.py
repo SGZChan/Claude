@@ -24,7 +24,7 @@ RULES = [
     (re.compile(r"\bsearch (?:my )?journal (?:for )?(.+)$", I), lambda m: ("journal_search", {"query": m[1]})),
     (re.compile(r"\bjournal:?\s+(.+)$", I), lambda m: ("journal_add", {"text": m[1]})),
     (re.compile(r"upcoming events|my calendar|agenda", I), lambda m: ("calendar_upcoming", {})),
-    (re.compile(r"\bconvert\s+([\d.]+)\s*(\w+)\s+to\s+(\w+)", I), lambda m: ("unit_convert", {"value": m[1], "from_unit": m[2], "to_unit": m[3]})),
+    (re.compile(r"\bconvert\s+(-?[\d.]+)\s*(\w+)\s+to\s+(\w+)", I), lambda m: ("unit_convert", {"value": m[1], "from_unit": m[2], "to_unit": m[3]})),
     (re.compile(r"days between (\d{4}-\d{2}-\d{2}) and (\d{4}-\d{2}-\d{2})", I), lambda m: ("date_diff", {"a": m[1], "b": m[2]})),
     (re.compile(r"(-?\d+) days (?:from|after) (\d{4}-\d{2}-\d{2}|today)", I), lambda m: ("date_math", {"start": m[2], "days": m[1]})),
     (re.compile(r"passphrase", I), lambda m: ("passphrase", {})),

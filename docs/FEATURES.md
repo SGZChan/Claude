@@ -28,9 +28,18 @@ Tools marked 🔒 always ask for your approval before running. Tools marked 🌐
 | Learning | System One skills | on | learned skills run with no model call |
 | | Reflection | on | one-line lesson after each run |
 | | Memory recall | on | lessons/corrections/notes fed into the prompt |
+| | Custom practice tasks | on | add your own practice tasks (see below); self-practice mixes them in |
 | | Self-practice | off | job: practise verifiable tasks every 30 min |
 | Automation | Scheduler | on | recurring goals (Schedules page) |
 | | Plugins | off | load your own Python tools from `<data>/plugins` (high risk: plugin code is unsandboxed) |
+
+## Custom practice tasks
+On the **Learning** page, add tasks Laya practises on to learn skills. A task has:
+- **Goal template** with `{placeholders}`, e.g. `Convert {a} miles to km`
+- **Parameters**, one per line: `a: int 1..50`, `x: float 0.5..9.5`, `op: choice + | - | *`
+- **A check** for the answer: *finishes without error*, *number equals expression* (`{a}*1.609344`, relative tolerance), *contains text*, *equals text*, *matches regex*, or *a specific tool ran OK*
+
+Use **Test** / **Run ×5** to try a task, watch its pass rate and last miss, **Edit** it, or **Export/Import** task sets as JSON. **Add starter tasks** loads six safe examples. Practice runs use real tools (approval-gated tools are denied), so avoid tasks with side effects you don't want.
 
 Many tools enabled at once would overflow a 0.5B model's context, so only the ~10 tools most relevant to the current goal are shown to the model.
 

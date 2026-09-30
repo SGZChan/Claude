@@ -36,14 +36,14 @@ cd dashboard && npm install && npm run build   # then: cd ../laya && laya serve 
 Pages: Overview (KPIs, Today panel, learning curve), Features, Run console (live steps, approvals, stop), Runs, Skills, Memory, Learning, Tools & permissions, Schedules, System (+ kill switch).
 
 ## Features you can switch on and off
-The dashboard's **Features** page lets you pick what Laya can do (25 features: assistant, files & knowledge base, data wrangling, web digest, developer helper, message triage, utilities, plugins, learning toggles, background jobs) or apply a preset. See [docs/FEATURES.md](docs/FEATURES.md) for the full list and a roadmap of more ideas.
+The dashboard's **Features** page lets you pick what Laya can do (26 features: assistant, files & knowledge base, data wrangling, web digest, developer helper, message triage, utilities, plugins, learning toggles, background jobs) or apply a preset. See [docs/FEATURES.md](docs/FEATURES.md) for the full list and a roadmap of more ideas.
 
 ## How it learns (no weight updates)
 1. Every run is stored; a one-line **reflection** lesson is added to vector memory and retrieved into later prompts.
 2. Goals are reduced to a *shape* (numbers/quoted strings become slots). When the same shape yields the same tool sequence **3 times**, it becomes a **skill**.
 3. The **System One router** matches new goals to skills and runs them with zero model calls; failures fall back to the model.
 4. 👍/👎 and corrections adjust skill scores (two rejections disable a skill) and memory.
-5. **Self-practice** runs verifiable tasks; **export** produces JSONL for an optional offline fine-tune.
+5. **Self-practice** runs verifiable tasks, including **your own custom practice tasks** (Learning page); **export** produces JSONL for an optional offline fine-tune.
 
 ## Safety
 Tools have tiers (`safe` / `confirm` / `blocked`); `confirm` tools (file writes, web fetch, sandboxed Python, read-only shell) need approval each run, even inside skills. Files are confined to a workspace directory, web fetch is allow-listed, runs have step and time budgets, and a kill switch stops everything.
