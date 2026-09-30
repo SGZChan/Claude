@@ -79,7 +79,7 @@ export default function PracticeTasks() {
           <span className="grow" />
           <button type="button" onClick={starter} disabled={busy === "starter"}>Add starter tasks</button>
           <a className="btnlink" href="/api/practice/export" download="laya-practice-tasks.json">Export</a>
-          <button type="button" onClick={() => setShowImport(!showImport)}>Import</button>
+          <button type="button" onClick={() => setShowImport(!showImport)}>Import JSON…</button>
         </div>
       </form>
       {showImport && (

@@ -21,6 +21,7 @@ from . import practice_routes
 from ..tools.assistant import brief_text, fmt_ts
 from ..learning.curriculum import practice
 from ..learning.export import export_jsonl
+from ..learning.importer import ImportErr, import_jsonl
 from ..learning.feedback import apply_feedback
 from . import metrics
 
@@ -60,6 +61,13 @@ class ScheduleIn(BaseModel):
 
 class PracticeIn(BaseModel):
     n: int = Field(default=6, ge=1, le=30)
+
+
+class ImportJsonlIn(BaseModel):
+    jsonl: str = Field(min_length=1, max_length=5_000_000)
+    learn_skills: bool = True
+    add_lessons: bool = True
+    dry_run: bool = False
 
 
 class KillIn(BaseModel):
@@ -189,6 +197,15 @@ def create_app(laya: Laya | None = None, run_scheduler: bool = False) -> FastAPI
     @app.post("/api/learning/practice")
     def do_practice(body: PracticeIn):
         return practice(laya, body.n)
+
+    @app.post("/api/learning/import")
+    def import_training(body: ImportJsonlIn):
+        if not laya.features.enabled("training_import"):
+            raise HTTPException(403, "the 'Import training data' feature is off")
+        try:
+            return import_jsonl(laya, body.jsonl, body.learn_skills, body.add_lessons, body.dry_run)
+        except ImportErr as e:
+            raise HTTPException(422, str(e))
 
     @app.get("/api/learning/export.jsonl", response_class=PlainTextResponse)
     def export():

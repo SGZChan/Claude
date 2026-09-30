@@ -34,6 +34,7 @@ CREATE TABLE IF NOT EXISTS practice_tasks(
   id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT UNIQUE, template TEXT, params TEXT DEFAULT '', check_type TEXT,
   check_value TEXT DEFAULT '', tolerance REAL DEFAULT 0.001, enabled INTEGER DEFAULT 1, runs INTEGER DEFAULT 0,
   passes INTEGER DEFAULT 0, last_fail TEXT DEFAULT '', created REAL);
+CREATE TABLE IF NOT EXISTS imported_traces(hash TEXT PRIMARY KEY, created REAL);
 CREATE TABLE IF NOT EXISTS tool_stats(tool TEXT PRIMARY KEY, calls INTEGER DEFAULT 0, errors INTEGER DEFAULT 0);
 """
 

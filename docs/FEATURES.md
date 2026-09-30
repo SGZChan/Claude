@@ -29,6 +29,7 @@ Tools marked 🔒 always ask for your approval before running. Tools marked 🌐
 | | Reflection | on | one-line lesson after each run |
 | | Memory recall | on | lessons/corrections/notes fed into the prompt |
 | | Custom practice tasks | on | add your own practice tasks (see below); self-practice mixes them in |
+| | Import training data (JSONL) | on | import a training-data file (Learning page or `laya import file.jsonl`) |
 | | Self-practice | off | job: practise verifiable tasks every 30 min |
 | Automation | Scheduler | on | recurring goals (Schedules page) |
 | | Plugins | off | load your own Python tools from `<data>/plugins` (high risk: plugin code is unsandboxed) |
@@ -40,6 +41,17 @@ On the **Learning** page, add tasks Laya practises on to learn skills. A task ha
 - **A check** for the answer: *finishes without error*, *number equals expression* (`{a}*1.609344`, relative tolerance), *contains text*, *equals text*, *matches regex*, or *a specific tool ran OK*
 
 Use **Test** / **Run ×5** to try a task, watch its pass rate and last miss, **Edit** it, or **Export/Import** task sets as JSON. **Add starter tasks** loads six safe examples. Practice runs use real tools (approval-gated tools are denied), so avoid tasks with side effects you don't want.
+
+## Importing training data (JSONL)
+The **Learning** page can export your Laya's successful runs as JSONL, and import such a file into any Laya (**Import training data**, or `laya import file.jsonl [--dry-run] [--no-lessons]`).
+
+Each line: `{"prompt": "What is 2*3?", "actions": [{"tool": "calculator", "args": {"expression": "2*3"}, "result": "6"}], "final": "6"}`
+
+- Every valid line is one *vote* toward a skill, under the same rules as a real run (3 distinct agreeing examples promote a skill); it can also be stored as a lesson.
+- **Check file** validates without importing. Bad lines are listed with line numbers and never abort the import.
+- Nothing is executed, unknown tools are rejected, and re-importing a file is safe (already-imported lines are skipped).
+- Files exported by older versions have no results; their single-step lines import fine, multi-step lines are skipped (their arguments may depend on earlier results). Re-export to include them.
+- Only import files you trust: imported skills run your tools on matching goals (approval-gated tools still ask), and lessons feed the model's prompt.
 
 Many tools enabled at once would overflow a 0.5B model's context, so only the ~10 tools most relevant to the current goal are shown to the model.
 

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { api, ago, pct } from "../api";
 import { useApi } from "../hooks";
 import PracticeTasks from "./Practice";
+import ImportTraining from "./ImportTraining";
 
 export function Skills() {
   const [skills, reload] = useApi<any[]>("/api/skills", 4000);
@@ -107,6 +108,7 @@ export function Learning() {
         </div>
       </div>
       <PracticeTasks />
+      <ImportTraining />
       <div className="card">
         <h2>Recent lessons &amp; corrections</h2>
         {![...d.lessons, ...d.corrections].length && <div className="empty">None yet.</div>}
