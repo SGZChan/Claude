@@ -40,6 +40,13 @@ On the **Learning** page, add tasks Laya practises on to learn skills. A task ha
 - **Parameters**, one per line: `a: int 1..50`, `x: float 0.5..9.5`, `op: choice + | - | *`
 - **A check** for the answer: *finishes without error*, *number equals expression* (`{a}*1.609344`, relative tolerance), *contains text*, *equals text*, *matches regex*, or *a specific tool ran OK*
 
+**Batch add** (button next to *Add task*): paste or drop many tasks at once, in any of these formats (auto-detected):
+- simple lines: `name | goal template | parameters | check type | check value | tolerance` (only the first two are required; separate parameters with `;` and choices with commas, e.g. `op: choice +,-,*`; `#` starts a comment)
+- CSV with a header row (`name,template,params,check_type,check_value,tolerance`; tab-separated paste from a spreadsheet works too)
+- a JSON array, or JSONL with one task object per line
+
+You can add several files at once. **Check** shows exactly what would happen (added / already exist / problems with real line numbers) without changing anything. From the command line: `laya add-tasks tasks.txt [--dry-run]`.
+
 Use **Test** / **Run ×5** to try a task, watch its pass rate and last miss, **Edit** it, or **Export/Import** task sets as JSON. **Add starter tasks** loads six safe examples. Practice runs use real tools (approval-gated tools are denied), so avoid tasks with side effects you don't want.
 
 ## Importing training data (JSONL)
@@ -48,7 +55,8 @@ The **Learning** page can export your Laya's successful runs as JSONL, and impor
 Each line: `{"prompt": "What is 2*3?", "actions": [{"tool": "calculator", "args": {"expression": "2*3"}, "result": "6"}], "final": "6"}`
 
 - Every valid line is one *vote* toward a skill, under the same rules as a real run (3 distinct agreeing examples promote a skill); it can also be stored as a lesson.
-- **Check file** validates without importing. Bad lines are listed with line numbers and never abort the import.
+- Choose **several files at once** (or drag and drop them, or paste). A JSON array works as well as JSONL, and UTF-8 or Windows UTF-16 files are both read correctly. Each file is validated separately and the totals combined.
+- **Check** validates without importing. Bad lines are listed with line numbers and never abort the import.
 - Nothing is executed, unknown tools are rejected, and re-importing a file is safe (already-imported lines are skipped).
 - Files exported by older versions have no results; their single-step lines import fine, multi-step lines are skipped (their arguments may depend on earlier results). Re-export to include them.
 - Only import files you trust: imported skills run your tools on matching goals (approval-gated tools still ask), and lessons feed the model's prompt.
@@ -68,3 +76,7 @@ Many tools enabled at once would overflow a 0.5B model's context, so only the ~1
 - **Expense & habit trackers** built on the CSV tools.
 - **Multi-user + auth**, PWA install, and a mobile-friendly quick-capture page.
 - **Eval suite** dashboard: regression-test skills and prompts after each change.
+
+## Batch adding elsewhere
+- **Memory page → Add many…**: one note per line (or drop several `.txt` files); choose whether they are notes, lessons or corrections. Duplicates are skipped, `#` lines ignored, up to 1000 lines per request.
+- **Learning page → Import training data**: several `.jsonl` files at once (see above).

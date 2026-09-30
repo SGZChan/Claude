@@ -28,6 +28,12 @@ class RunIn(BaseModel):
     n: int = Field(default=3, ge=1, le=20)
 
 
+class BatchIn(BaseModel):
+    text: str = Field(default="", max_length=500_000)
+    texts: list[str] = Field(default_factory=list, max_length=50)  # several sources at once (e.g. several files)
+    dry_run: bool = False
+
+
 class ImportIn(BaseModel):
     tasks: list[dict[str, Any]] = Field(max_length=T.MAX_TASKS)
 
@@ -88,6 +94,17 @@ def register(app: FastAPI, laya: Laya) -> None:
     def export():
         gate()
         return T.export_tasks(store)
+
+    @app.post("/api/practice/batch")
+    def batch(body: BatchIn):
+        gate()
+        if body.texts:
+            if any(len(t) > 500_000 for t in body.texts):
+                raise HTTPException(422, "a source is over 500,000 characters")
+            return T.batch_add_many(store, body.texts, body.dry_run)
+        if not body.text.strip():
+            raise HTTPException(422, "nothing to add: paste some tasks or choose a file")
+        return guard(T.batch_add, store, body.text, body.dry_run)
 
     @app.post("/api/practice/import")
     def import_(body: ImportIn):

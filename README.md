@@ -45,7 +45,7 @@ The dashboard's **Features** page lets you pick what Laya can do (27 features: a
 2. Goals are reduced to a *shape* (numbers/quoted strings become slots). When the same shape yields the same tool sequence **3 times**, it becomes a **skill**.
 3. The **System One router** matches new goals to skills and runs them with zero model calls; failures fall back to the model.
 4. 👍/👎 and corrections adjust skill scores (two rejections disable a skill) and memory.
-5. **Self-practice** runs verifiable tasks, including **your own custom practice tasks** (Learning page); **export** produces JSONL (for an optional offline fine-tune) that you can also **import** into another Laya to teach it the same skills.
+5. **Self-practice** runs verifiable tasks, including **your own custom practice tasks** (Learning page, add them one by one or in bulk from pasted lines, CSV, JSON or files); **export** produces JSONL (for an optional offline fine-tune) that you can also **import** into another Laya to teach it the same skills.
 
 ## Safety
 Tools have tiers (`safe` / `confirm` / `blocked`); `confirm` tools (file writes, web fetch, sandboxed Python, read-only shell) need approval each run, even inside skills. Files are confined to a workspace directory, web fetch is allow-listed, runs have step and time budgets, and a kill switch stops everything.

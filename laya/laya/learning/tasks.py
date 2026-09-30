@@ -10,6 +10,8 @@ Check types: succeeds | equals | contains | regex | expr | tool.
 """
 from __future__ import annotations
 
+import csv
+import io
 import json
 import random
 import re
@@ -32,7 +34,7 @@ class TaskError(ValueError):
 
 
 def parse_params(text: str) -> dict[str, dict[str, Any]]:
-    """One parameter per line (or separated by ';'):  a: int 2..99 | x: float 0.5..9.5 | op: choice + | - | *"""
+    """One parameter per line (or separated by ';'):  a: int 2..99 | x: float 0.5..9.5 | op: choice + | - | *  (or 'choice +, -, *')"""
     out: dict[str, dict[str, Any]] = {}
     for line in re.split(r"[\n;]", text or ""):
         line = line.strip()
@@ -44,7 +46,8 @@ def parse_params(text: str) -> dict[str, dict[str, Any]]:
                 raise TaskError(f"parameter '{name}': min is greater than max")
             out[name] = {"type": kind, "min": lo, "max": hi}
         elif m := CHOICE_RE.match(line):
-            vals = [v.strip() for v in m[2].split("|") if v.strip()]
+            sep = "|" if "|" in m[2] else ","  # 'choice a | b' or 'choice a, b'
+            vals = [v.strip() for v in m[2].split(sep) if v.strip()]
             if not vals:
                 raise TaskError(f"parameter '{m[1]}': give at least one choice, separated by |")
             out[m[1]] = {"type": "choice", "values": vals}
@@ -207,3 +210,101 @@ def import_tasks(store: Store, items: list[Any]) -> dict[str, Any]:
         except TaskError as e:
             errors.append(f"#{i + 1} {d.get('name', '') if isinstance(d, dict) else ''}: {e}".strip())
     return {"added": added, "errors": errors}
+
+
+# ---------------------------------------------------------------- batch adding
+BATCH_FIELDS = ("name", "template", "params", "check_type", "check_value", "tolerance")
+
+
+def parse_batch(text: str) -> tuple[str, list[tuple[int, dict[str, Any]]], list[dict[str, Any]]]:
+    """Turn pasted/uploaded text into task dicts. Formats (auto-detected):
+
+    * JSON array of task objects                       [{"name": ...}, ...]
+    * JSONL, one task object per line                  {"name": ...}
+    * CSV with a header row                            name,template,params,check_type,check_value,tolerance
+    * simple lines, fields separated by |              name | template | params | check_type | check_value | tolerance
+      (only name and template are required; blank lines and lines starting with # are ignored;
+       in the params column separate parameters with ';' and choices with ',')
+
+    Returns (format, [(line_no, task_dict)], [{"line", "error"}])."""
+    t = text.lstrip("\ufeff").strip()
+    if not t:
+        raise TaskError("nothing to add: paste some tasks or choose a file")
+    items: list[tuple[int, dict[str, Any]]] = []
+    errors: list[dict[str, Any]] = []
+    first = t.splitlines()[0].strip().lower()
+    if t[0] == "[":
+        try:
+            arr = json.loads(t)
+        except json.JSONDecodeError as e:
+            raise TaskError(f"invalid JSON: {e.msg} (line {e.lineno})")
+        fmt = "json"
+        for i, d in enumerate(arr, 1):
+            (items.append((i, d)) if isinstance(d, dict) else errors.append({"line": i, "error": "each task must be an object"}))
+    elif t[0] == "{":
+        fmt = "jsonl"
+        for n, line in enumerate(text.lstrip("\ufeff").splitlines(), 1):
+            if not line.strip():
+                continue
+            try:
+                d = json.loads(line)
+                (items.append((n, d)) if isinstance(d, dict) else errors.append({"line": n, "error": "each task must be an object"}))
+            except json.JSONDecodeError:
+                errors.append({"line": n, "error": "not valid JSON"})
+    elif first.startswith("name,") or first.startswith("name\t"):
+        fmt = "csv"
+        dialect = csv.excel_tab if first.startswith("name\t") else csv.excel
+        for i, row in enumerate(csv.DictReader(io.StringIO(t), dialect=dialect), 2):
+            items.append((i, {(k or "").strip().lower(): (v or "").strip() for k, v in row.items() if k}))
+    else:
+        fmt = "lines"
+        for n, line in enumerate(text.lstrip("\ufeff").splitlines(), 1):
+            if not line.strip() or line.strip().startswith("#"):
+                continue
+            f = [x.strip() for x in line.split("|")]
+            if len(f) < 2:
+                errors.append({"line": n, "error": "need at least: name | goal template"})
+            elif len(f) > len(BATCH_FIELDS):
+                errors.append({"line": n, "error": "too many '|' separators; in the params column separate choices with commas, e.g. op: choice +,-,*"})
+            else:
+                items.append((n, dict(zip(BATCH_FIELDS, f))))
+    return fmt, items, errors
+
+
+def batch_add(store: Store, text: str, dry_run: bool = False, names: set[str] | None = None) -> dict[str, Any]:
+    """Add tasks from text. Pass a shared `names` set when adding several sources in a row so duplicates across
+    them are detected (and a dry run predicts the real run exactly)."""
+    fmt, items, errors = parse_batch(text)
+    total = len(items) + len(errors)  # records seen, before validation
+    if names is None:
+        names = {r["name"] for r in store.q("SELECT name FROM practice_tasks")}
+    added = dups = 0
+    for line, d in items:
+        try:
+            v = validate({**d, "check_type": d.get("check_type") or "succeeds"})
+            if v["name"] in names:
+                dups += 1
+                continue
+            if len(names) >= MAX_TASKS:
+                raise TaskError(f"limit of {MAX_TASKS} tasks reached")
+            if not dry_run:
+                add_task(store, v)
+            names.add(v["name"])
+            added += 1
+        except TaskError as e:
+            errors.append({"line": line, "error": str(e)})
+    errors.sort(key=lambda e: e["line"])
+    return {"format": fmt, "total": total, "added": added, "duplicates": dups, "errors": errors[:20], "error_count": len(errors), "dry_run": dry_run}
+
+
+def batch_add_many(store: Store, texts: list[str], dry_run: bool = False) -> dict[str, Any]:
+    """Several sources (e.g. several files) in order, sharing duplicate detection. Per-source results + totals."""
+    names = {r["name"] for r in store.q("SELECT name FROM practice_tasks")}
+    results = []
+    for t in texts:
+        try:
+            results.append(batch_add(store, t, dry_run, names))
+        except TaskError as e:
+            results.append({"format": "?", "total": 0, "added": 0, "duplicates": 0, "errors": [], "error_count": 0, "failed": str(e), "dry_run": dry_run})
+    return {"results": results, "added": sum(r["added"] for r in results), "duplicates": sum(r["duplicates"] for r in results),
+            "total": sum(r["total"] for r in results), "dry_run": dry_run}

@@ -50,6 +50,11 @@ class FactIn(BaseModel):
     kind: str = "note"
 
 
+class MemoryBatchIn(BaseModel):
+    text: str = Field(min_length=1, max_length=500_000)
+    kind: str = Field(default="note", pattern="^(note|lesson|correction)$")
+
+
 class TierIn(BaseModel):
     tier: str = Field(pattern="^(safe|confirm|blocked)$")
 
@@ -166,6 +171,24 @@ def create_app(laya: Laya | None = None, run_scheduler: bool = False) -> FastAPI
     @app.post("/api/memory", status_code=201)
     def add_memory(body: FactIn):
         return {"id": store.add_fact(body.kind, body.text)}
+
+    @app.post("/api/memory/batch")
+    def add_memory_batch(body: MemoryBatchIn):
+        """One memory item per line; blank lines and lines starting with # are ignored."""
+        lines = [(n, ln.strip()) for n, ln in enumerate(body.text.lstrip("\ufeff").splitlines(), 1) if ln.strip() and not ln.strip().startswith("#")]
+        if len(lines) > 1000:
+            raise HTTPException(422, "too many lines (max 1000)")
+        added = dups = 0
+        errors = []
+        for n, text in lines:
+            if len(text) > 500:
+                errors.append({"line": n, "error": "longer than 500 characters"})
+            elif store.q("SELECT id FROM facts WHERE kind=? AND text=?", (body.kind, text)):
+                dups += 1
+            else:
+                store.add_fact(body.kind, text)
+                added += 1
+        return {"added": added, "duplicates": dups, "errors": errors[:20], "total": len(lines)}
 
     @app.delete("/api/memory/{fid}", status_code=204)
     def del_memory(fid: int):

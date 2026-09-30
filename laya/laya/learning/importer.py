@@ -57,9 +57,18 @@ def import_jsonl(laya: "Laya", text: str, learn_skills: bool = True, add_lessons
     store, known = laya.store, set(laya.registry.tools)
     out: dict[str, Any] = {"lines": 0, "valid": 0, "duplicates": 0, "votes": 0, "lessons": 0, "skills_promoted": [],
                            "invalid": [], "skipped": [], "dry_run": dry_run}
-    raw = text.lstrip("﻿").splitlines()
+    text = text.lstrip("\ufeff")
+    if text.lstrip().startswith("["):  # a plain JSON array works too: one element per "line"
+        try:
+            arr = json.loads(text)
+        except json.JSONDecodeError as e:
+            raise ImportErr(f"invalid JSON array: {e.msg} (line {e.lineno})")
+        raw = [json.dumps(x) for x in arr]
+    else:
+        raw = text.splitlines()
     if len([ln for ln in raw if ln.strip()]) > MAX_LINES:
         raise ImportErr(f"too many lines (max {MAX_LINES})")
+    seen: set[str] = set()
     for n, line in enumerate(raw, 1):
         if not line.strip():
             continue
@@ -79,9 +88,10 @@ def import_jsonl(laya: "Laya", text: str, learn_skills: bool = True, add_lessons
             continue
         out["valid"] += 1
         h = hashlib.sha1(json.dumps([prompt, [(s["tool"], s["args"], s["result"]) for s in steps]], sort_keys=True).encode()).hexdigest()
-        if store.q("SELECT 1 FROM imported_traces WHERE hash=?", (h,)):
+        if h in seen or store.q("SELECT 1 FROM imported_traces WHERE hash=?", (h,)):
             out["duplicates"] += 1
             continue
+        seen.add(h)
         if dry_run:
             continue
         store.x("INSERT INTO imported_traces(hash,created) VALUES(?,?)", (h, time.time()))

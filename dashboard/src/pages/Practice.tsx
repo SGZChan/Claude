@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { api, pct } from "../api";
 import { useApi } from "../hooks";
+import FilePicker, { Source, SourceChips } from "../FilePicker";
 
 const CHECKS: Record<string, { label: string; help: string; placeholder: string }> = {
   succeeds: { label: "Just finishes without error", help: "Passes if Laya completes the goal.", placeholder: "" },
@@ -19,8 +20,10 @@ export default function PracticeTasks() {
   const [msg, setMsg] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState<number | "starter" | "">("");
-  const [importText, setImportText] = useState("");
-  const [showImport, setShowImport] = useState(false);
+  const [showBatch, setShowBatch] = useState(false);
+  const [files, setFiles] = useState<Source[]>([]);
+  const [pasted, setPasted] = useState("");
+  const [batchRes, setBatchRes] = useState<any>(null);
   const set = (k: string, v: any) => setForm((f: any) => ({ ...f, [k]: v }));
 
   if (err?.includes("feature")) return <div className="card"><h2>Practice tasks</h2><p className="muted">The “Custom practice tasks” feature is off. <a href="#/features">Turn it on in Features</a>.</p></div>;
@@ -42,14 +45,21 @@ export default function PracticeTasks() {
     } catch (e: any) { setError(e.message); } finally { setBusy(""); }
   };
   const starter = async () => { setBusy("starter"); const r = await api.post("/api/practice/starter"); setMsg(r.added ? `Added ${r.added} starter task(s).` : "Starter tasks are already added."); setBusy(""); reload(); };
-  const doImport = async () => {
-    setError("");
+  const batch = async (dry: boolean) => {
+    setError(""); setBatchRes(null); setBusy("starter");
+    const sources: Source[] = [...files, ...(pasted.trim() ? [{ name: "pasted text", text: pasted, lines: 0 }] : [])];
     try {
-      const parsed = JSON.parse(importText);
-      const r = await api.post("/api/practice/import", { tasks: Array.isArray(parsed) ? parsed : parsed.tasks });
-      setMsg(`Imported ${r.added} task(s).${r.errors.length ? " Skipped: " + r.errors.join("; ") : ""}`); setImportText(""); setShowImport(false); reload();
-    } catch (e: any) { setError(e.message); }
+      const r = await api.post("/api/practice/batch", { texts: sources.map((x) => x.text), dry_run: dry });
+      const agg: any = { dry_run: dry, total: r.total, added: r.added, duplicates: r.duplicates, errors: [], failed: [], files: sources.length };
+      r.results.forEach((x: any, i: number) => {
+        if (x.failed) agg.failed.push(`${sources[i].name}: ${x.failed}`);
+        agg.errors.push(...x.errors.map((e: any) => ({ ...e, file: sources[i].name })));
+      });
+      setBatchRes(agg);
+      if (!dry && r.added) { setMsg(`Added ${r.added} task(s).`); reload(); }
+    } catch (e: any) { setError(e.message); } finally { setBusy(""); }
   };
+  const nSources = files.length + (pasted.trim() ? 1 : 0);
   const edit = (t: any) => { setEditing(t.id); setForm({ name: t.name, template: t.template, params: t.params, check_type: t.check_type, check_value: t.check_value, tolerance: t.tolerance }); setError(""); window.scrollTo({ top: 0, behavior: "smooth" }); };
   const c = CHECKS[form.check_type];
 
@@ -79,13 +89,30 @@ export default function PracticeTasks() {
           <span className="grow" />
           <button type="button" onClick={starter} disabled={busy === "starter"}>Add starter tasks</button>
           <a className="btnlink" href="/api/practice/export" download="laya-practice-tasks.json">Export</a>
-          <button type="button" onClick={() => setShowImport(!showImport)}>Import JSON…</button>
+          <button type="button" onClick={() => setShowBatch(!showBatch)} aria-expanded={showBatch}>Batch add…</button>
         </div>
       </form>
-      {showImport && (
-        <div style={{ marginTop: 10 }}>
-          <textarea rows={5} style={{ width: "100%" }} value={importText} onChange={(e) => setImportText(e.target.value)} placeholder='Paste exported JSON: [{"name": "...", "template": "...", ...}]' aria-label="Import JSON" />
-          <button onClick={doImport} disabled={!importText.trim()}>Import tasks</button>
+      {showBatch && (
+        <div className="card" style={{ marginTop: 12, background: "var(--surface-2)" }}>
+          <b>Batch add tasks</b>
+          <p className="hint" style={{ marginTop: 4 }}>One task per line: <code>name | goal template | parameters | check type | check value | tolerance</code> (only the first two are required; separate parameters with <code>;</code> and choices with commas; lines starting with # are ignored). CSV, JSON and JSONL files work too, and you can add several files at once.</p>
+          <FilePicker onLoaded={(s) => { setFiles((f) => [...f, ...s]); setBatchRes(null); }} label="Drop task files here (.txt .csv .json .jsonl), or click to choose" />
+          <SourceChips sources={files} onRemove={(i) => { setFiles((f) => f.filter((_, j) => j !== i)); setBatchRes(null); }} />
+          <textarea rows={6} style={{ width: "100%", margin: "10px 0" }} value={pasted} onChange={(e) => { setPasted(e.target.value); setBatchRes(null); }} aria-label="Batch tasks text"
+            placeholder={"Miles to km | Convert {a} miles to km | a: int 1..50 | expr | {a}*1.609344\nMixed math | What is {a}{op}{b}? | a: int 2..9; b: int 2..9; op: choice +,-,* | expr | {a}{op}{b}\nPassphrase | Generate a passphrase | | tool | passphrase"} />
+          <div className="row">
+            <button type="button" onClick={() => batch(true)} disabled={!nSources || busy === "starter"}>Check</button>
+            <button type="button" className="primary" onClick={() => batch(false)} disabled={!nSources || busy === "starter"}>Add all</button>
+            {!!nSources && <button type="button" onClick={() => { setFiles([]); setPasted(""); setBatchRes(null); }}>Clear</button>}
+          </div>
+          {batchRes?.failed.map((f: string) => <p key={f} className="err" role="alert">{f}</p>)}
+          {batchRes && batchRes.total + batchRes.failed.length > 0 && (
+            <div role="status" style={{ marginTop: 8 }}>
+              <b>{batchRes.dry_run ? "Check complete (nothing added)" : "Done"}</b>: {batchRes.dry_run ? "would add" : "added"} {batchRes.added} of {batchRes.total}
+              {batchRes.duplicates > 0 && <> · {batchRes.duplicates} already exist</>}{batchRes.errors.length > 0 && <> · <span className="err">{batchRes.errors.length} with problems</span></>}
+              {batchRes.errors.map((e: any, i: number) => <div key={i} className="err" style={{ fontSize: 12 }}>{batchRes.files > 1 ? `${e.file}, ` : ""}line {e.line}: {e.error}</div>)}
+            </div>
+          )}
         </div>
       )}
       {msg && <p role="status" style={{ marginBottom: 0 }}>{msg}</p>}

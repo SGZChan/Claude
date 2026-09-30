@@ -60,7 +60,7 @@ def test_import_is_idempotent_and_dedupes_within_file(fresh):
 
 def test_reports_bad_lines_without_aborting(fresh):
     text = "\n".join(["not json", line("ok goal", calc("1+1", "2")), json.dumps({"prompt": "x"}), "", json.dumps([1])])
-    res = import_jsonl(fresh, "﻿" + text)                    # BOM tolerated
+    res = import_jsonl(fresh, "\ufeff" + text)                    # BOM tolerated
     assert res["lines"] == 4 and res["valid"] == 1
     assert [i["line"] for i in res["invalid"]] == [1, 3, 5]
 

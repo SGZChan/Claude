@@ -86,3 +86,7 @@ a.tryit, a.btnlink { display: inline-block; font-size: 12px; margin-top: 4px; } 
 .taskform label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--text-2); margin-bottom: 10px; }
 .taskform input, .taskform select, .taskform textarea { font-size: 14px; color: var(--text); }
 .taskform code, .hint code { background: var(--surface-2); padding: 0 4px; border-radius: 4px; font-size: 11px; }
+/* file picker */
+.dropzone { border: 2px dashed var(--border); border-radius: 10px; padding: 16px; text-align: center; color: var(--text-2); cursor: pointer; position: relative; }
+.dropzone:hover, .dropzone.over, .dropzone:focus-visible { border-color: var(--accent); color: var(--text); background: var(--surface-2); }
+.sr-file { position: absolute; width: 1px; height: 1px; opacity: 0; overflow: hidden; pointer-events: none; }

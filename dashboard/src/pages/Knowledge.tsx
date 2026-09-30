@@ -3,6 +3,7 @@ import { api, ago, pct } from "../api";
 import { useApi } from "../hooks";
 import PracticeTasks from "./Practice";
 import ImportTraining from "./ImportTraining";
+import FilePicker, { Source, SourceChips, postEach } from "../FilePicker";
 
 export function Skills() {
   const [skills, reload] = useApi<any[]>("/api/skills", 4000);
@@ -43,6 +44,20 @@ export function Memory() {
   const [kind, setKind] = useState("");
   const [text, setText] = useState("");
   const [facts, reload] = useApi<any[]>(`/api/memory?q=${encodeURIComponent(q)}&kind=${kind}`);
+  const [many, setMany] = useState(false);
+  const [files, setFiles] = useState<Source[]>([]);
+  const [pasted, setPasted] = useState("");
+  const [batchKind, setBatchKind] = useState("note");
+  const [batchMsg, setBatchMsg] = useState("");
+  const addMany = async () => {
+    const sources: Source[] = [...files, ...(pasted.trim() ? [{ name: "pasted text", text: pasted, lines: 0 }] : [])];
+    const results = await postEach("/api/memory/batch", sources, { kind: batchKind }, "text");
+    const ok = results.filter((r) => r.res), bad = results.filter((r) => r.error);
+    const added = ok.reduce((n, r) => n + r.res.added, 0), dups = ok.reduce((n, r) => n + r.res.duplicates, 0);
+    const errs = ok.flatMap((r) => r.res.errors.map((e: any) => `${r.name} line ${e.line}: ${e.error}`)).concat(bad.map((r) => `${r.name}: ${r.error}`));
+    setBatchMsg(`Added ${added}${dups ? `, ${dups} already there` : ""}${errs.length ? `. Problems: ${errs.slice(0, 5).join("; ")}` : ""}`);
+    if (added) { setPasted(""); setFiles([]); reload(); }
+  };
   return (
     <>
       <h1>Memory</h1>
@@ -57,7 +72,21 @@ export function Memory() {
         <form className="row" style={{ marginBottom: 12 }} onSubmit={(e) => { e.preventDefault(); if (text.trim()) api.post("/api/memory", { text }).then(() => { setText(""); reload(); }); }}>
           <input className="grow" value={text} onChange={(e) => setText(e.target.value)} placeholder="Add a note for Laya to remember" aria-label="New note" />
           <button>Add</button>
+          <button type="button" onClick={() => setMany(!many)} aria-expanded={many}>Add many…</button>
         </form>
+        {many && (
+          <div className="card" style={{ background: "var(--surface-2)" }}>
+            <p className="hint" style={{ marginTop: 0 }}>One item per line (lines starting with # are ignored, duplicates are skipped). You can also drop several text files.</p>
+            <FilePicker onLoaded={(s) => setFiles((f) => [...f, ...s])} label="Drop .txt files here, or click to choose" />
+            <SourceChips sources={files} onRemove={(i) => setFiles((f) => f.filter((_, j) => j !== i))} />
+            <textarea rows={5} style={{ width: "100%", margin: "10px 0" }} value={pasted} onChange={(e) => setPasted(e.target.value)} aria-label="Many notes" placeholder={"Wifi password is on the fridge\nDentist on Tuesday at 3\nMum's birthday is 12 May"} />
+            <div className="row">
+              <select value={batchKind} onChange={(e) => setBatchKind(e.target.value)} aria-label="Kind for batch">{["note", "lesson", "correction"].map((k) => <option key={k}>{k}</option>)}</select>
+              <button className="primary" type="button" onClick={addMany} disabled={!files.length && !pasted.trim()}>Add all</button>
+              {batchMsg && <span role="status">{batchMsg}</span>}
+            </div>
+          </div>
+        )}
         {facts && !facts.length && <div className="empty">Nothing here.</div>}
         {!!facts?.length && (
           <table>
