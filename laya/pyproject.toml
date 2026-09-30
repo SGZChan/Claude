@@ -1,0 +1,23 @@
+[project]
+name = "laya"
+version = "0.1.0"
+description = "Laya (System One AI): a local, agentic, self-learning assistant"
+requires-python = ">=3.10"
+dependencies = ["fastapi>=0.110", "uvicorn>=0.27", "pydantic>=2", "numpy>=1.24"]
+
+[project.optional-dependencies]
+llm = ["llama-cpp-python>=0.2.90", "huggingface-hub>=0.23"]
+dev = ["pytest>=8", "httpx>=0.27"]
+
+[project.scripts]
+laya = "laya.cli:main"
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["laya*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
