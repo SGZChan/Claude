@@ -17,6 +17,13 @@ for %%A in (%*) do (
 )
 
 echo.
+echo === Stopping any Laya already running from this folder ===
+rem Windows locks laya.exe while it runs, which makes pip fail with WinError 32.
+set "LAYA_ROOT=%ROOT%"
+powershell -NoProfile -ExecutionPolicy Bypass -Command "$p=$env:LAYA_ROOT+'\.venv\'; Get-CimInstance Win32_Process | Where-Object { $_.ExecutablePath -and $_.ExecutablePath.StartsWith($p,[StringComparison]::OrdinalIgnoreCase) -and $_.ProcessId -ne $PID } | ForEach-Object { Write-Host ('Stopping ' + $_.Name + ' pid ' + $_.ProcessId); Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }" 2>nul
+timeout /t 2 /nobreak >nul
+
+echo.
 echo === [1/6] Checking prerequisites ===
 where python >nul 2>nul
 if errorlevel 1 (
@@ -48,7 +55,11 @@ echo.
 echo === [3/6] Installing Laya ===
 pushd "%ROOT%\laya"
 "%PY%" -m pip install -e ".[dev]"
-if errorlevel 1 ( popd & goto :fail )
+if errorlevel 1 (
+  echo.
+  echo If you saw "being used by another process": close any open Laya window or browser tab's server, then run setup.bat again.
+  popd & goto :fail
+)
 
 set "HAVE_LLM=0"
 if "%NOMODEL%"=="0" (
@@ -105,7 +116,7 @@ echo.
 echo Starting Laya at http://127.0.0.1:8000  ^(Ctrl+C to stop^)
 start "" "http://127.0.0.1:8000"
 cd /d "%ROOT%\laya"
-"%ROOT%\.venv\Scripts\laya.exe" serve
+"%PY%" -m laya.cli serve
 goto :end
 
 :fail

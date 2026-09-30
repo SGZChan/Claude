@@ -10,6 +10,8 @@ dashboard/   React + TypeScript dashboard (Vite)
 ## Quick start (Windows)
 Double-click **`setup.bat`** (needs Python 3.10+ and Node 18+). It creates a venv, installs Laya, downloads the 0.5B model, builds the dashboard and starts everything. Use `setup.bat /nomodel` to skip the model, `/norun` to skip launching. Afterwards start with **`run.bat`**.
 
+**Troubleshooting:** `WinError 32 ... laya.exe ... being used by another process` means Laya is still running from an earlier launch. `setup.bat` now stops it automatically; if you ever hit it manually, close the Laya window (or run `taskkill /F /IM laya.exe`) and try again. `run.bat` starts Laya with `python -m laya.cli serve`, which doesn't lock `laya.exe`.
+
 ## Quick start (manual)
 
 ```bash
